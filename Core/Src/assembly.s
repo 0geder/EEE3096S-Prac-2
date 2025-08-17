@@ -40,11 +40,13 @@ main_loop:
 
 	@ Check SW3 (Freeze) on PA3. If pressed, bit 3 is 0.
 	@ TST sets the Z flag if the result is zero. BEQ branches if Z=1.
-	TST R3, #(1 << 3)
+	MOVS R0, #8
+	TST R3, R0
 	BEQ main_loop       @ If pressed, loop back to the start. Skips all logic, freezing the LEDs.
 
 	@ Check SW2 (Set to 0xAA) on PA2. If pressed, bit 2 is 0.
-	TST R3, #(1 << 2)
+	MOVS R0, #4
+	TST R3, R0
 	BNE continue_normal @ If not pressed (result is non-zero), continue to normal counting.
 	LDR R2, =0xAA       @ If SW2 is pressed, load 0xAA into the LED register R2.
 	B write_leds        @ Write the value to the LEDs and loop back.
@@ -54,14 +56,16 @@ continue_normal:
 
 	@ Step 1: Determine increment value based on SW0 (PA0)
 	MOVS R4, #1         @ Default increment value = 1
-	TST R3, #(1 << 0)   @ Check if SW0 is pressed
+	MOVS R0, #1
+	TST R3, R0   @ Check if SW0 is pressed
 	BNE check_delay     @ If not pressed, keep increment as 1 and check for delay.
 	MOVS R4, #2         @ If pressed, set increment value = 2.
 
 check_delay:
 	@ Step 2: Determine delay duration based on SW1 (PA1)
 	LDR R6, =LONG_DELAY_CNT     @ Load address for the default long delay
-	TST R3, #(1 << 1)           @ Check if SW1 is pressed
+	MOVS R0, #2
+	TST R3, R0           @ Check if SW1 is pressed
 	BNE perform_increment_and_delay @ If not pressed, use the long delay.
 	LDR R6, =SHORT_DELAY_CNT    @ If pressed, load address for the short delay instead.
 
