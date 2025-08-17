@@ -35,10 +35,65 @@ ASM_Main:
 @ TODO: Add code, labels and logic for button checks and LED patterns
 
 main_loop:
+	LDR R0, GPIOA_BASE
+	LDR R3, [R0, #0x10]  @ Read button states (GPIOA_IDR) into R3. Pressed button = 0.
 
+	@ Check SW3 (Freeze) on PA3. If pressed, bit 3 is 0.
+	@ --- FIX START ---
+	MOVS R0, #8          @ Load mask for bit 3 into scratch register R0
+	TST R3, R0           @ Test if bit 3 of R3 is set (using register-register TST)
+	@ --- FIX END ---
+	BEQ main_loop        @ If pressed (bit is 0, TST result is 0), loop back to the start.
+
+	@ Check SW2 (Set to 0xAA) on PA2. If pressed, bit 2 is 0.
+	@ --- FIX START ---
+	MOVS R0, #4          @ Load mask for bit 2 into R0
+	TST R3, R0           @ Test if bit 2 of R3 is set
+	@ --- FIX END ---
+	BNE continue_normal  @ If not pressed (bit is 1, TST result is non-zero), continue.
+	LDR R2, =0xAA        @ If SW2 is pressed, load 0xAA into the LED register R2.
+	B write_leds         @ Write the value to the LEDs and loop back.
+
+continue_normal:
+	@ --- NORMAL COUNTING LOGIC ---
+
+	@ Step 1: Determine increment value based on SW0 (PA0)
+	MOVS R4, #1          @ Default increment value = 1
+	@ --- FIX START ---
+	MOVS R0, #1          @ Load mask for bit 0 into R0
+	TST R3, R0           @ Test if bit 0 of R3 is set
+	@ --- FIX END ---
+	BNE check_delay      @ If not pressed, keep increment as 1 and check for delay.
+	MOVS R4, #2          @ If pressed, set increment value = 2.
+
+check_delay:
+	@ Step 2: Determine delay duration based on SW1 (PA1)
+	LDR R6, =LONG_DELAY_CNT     @ Load address for the default long delay
+	@ --- FIX START ---
+	MOVS R0, #2          @ Load mask for bit 1 into R0
+	TST R3, R0           @ Test if bit 1 of R3 is set
+	@ --- FIX END ---
+	BNE perform_increment_and_delay @ If not pressed, use the long delay.
+	LDR R6, =SHORT_DELAY_CNT    @ If pressed, load address for the short delay instead.
+
+perform_increment_and_delay:
+	@ Step 3: Perform the increment
+	ADD R2, R2, R4      @ Increment the LED counter R2 by the value in R4
+
+	@ Step 4: Perform the delay
+	LDR R5, [R6]        @ Load the actual delay countdown value into R5
+	BL delay_sub        @ Call the delay subroutine
+	B write_leds        @ Branch to write the new LED value and loop
+
+delay_sub:
+	@ Simple delay loop. R5 holds the countdown value.
+delay_loop:
+	SUBS R5, R5, #1     @ Decrement counter
+	BNE delay_loop      @ Loop until counter is zero
+	BX LR               @ Return from subroutine
 
 write_leds:
-	STR R2, [R1, #0x14]
+	STR R2, [R1, #0x14] @ Write value in R2 to GPIOB Output Data Register (ODR). R1 holds GPIOB_BASE.
 	B main_loop
 
 @ LITERALS; DO NOT EDIT
@@ -50,5 +105,12 @@ GPIOB_BASE:  		.word 0x48000400
 MODER_OUTPUT: 		.word 0x5555
 
 @ TODO: Add your own values for these delays
-LONG_DELAY_CNT: 	.word 0
-SHORT_DELAY_CNT: 	.word 0
+@ These values are estimates for a standard clock speed (e.g., 8MHz).
+@ A simple delay loop takes a few clock cycles.
+@ For 0.7s: (0.7s * 8,000,000 cycles/s) / ~3 cycles/loop = ~1,866,667
+@ For 0.3s: (0.3s * 8,000,000 cycles/s) / ~3 cycles/loop = 800,000
+LONG_DELAY_CNT: 	.word 1800000
+SHORT_DELAY_CNT: 	.word 800000
+
+	.pool
+    .end
