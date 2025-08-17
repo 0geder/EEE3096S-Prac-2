@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+*.o
+*.d
+*.lst
+*.elf
+*.bin
+*.hex
+*.map
+
+# IDE files
+.settings/
+.vscode/settings.json
+
+# Debug files
+*.launch
+
+# Temporary files
+*~
+*.tmp
+*.bak
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
