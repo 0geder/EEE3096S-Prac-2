@@ -39,40 +39,29 @@ main_loop:
 	LDR R3, [R0, #0x10]  @ Read button states (GPIOA_IDR) into R3. Pressed button = 0.
 
 	@ Check SW3 (Freeze) on PA3. If pressed, bit 3 is 0.
-	@ --- FIX START ---
-	MOVS R0, #8          @ Load mask for bit 3 into scratch register R0
-	TST R3, R0           @ Test if bit 3 of R3 is set (using register-register TST)
-	@ --- FIX END ---
-	BEQ main_loop        @ If pressed (bit is 0, TST result is 0), loop back to the start.
+	@ TST sets the Z flag if the result is zero. BEQ branches if Z=1.
+	TST R3, #(1 << 3)
+	BEQ main_loop       @ If pressed, loop back to the start. Skips all logic, freezing the LEDs.
 
 	@ Check SW2 (Set to 0xAA) on PA2. If pressed, bit 2 is 0.
-	@ --- FIX START ---
-	MOVS R0, #4          @ Load mask for bit 2 into R0
-	TST R3, R0           @ Test if bit 2 of R3 is set
-	@ --- FIX END ---
-	BNE continue_normal  @ If not pressed (bit is 1, TST result is non-zero), continue.
-	LDR R2, =0xAA        @ If SW2 is pressed, load 0xAA into the LED register R2.
-	B write_leds         @ Write the value to the LEDs and loop back.
+	TST R3, #(1 << 2)
+	BNE continue_normal @ If not pressed (result is non-zero), continue to normal counting.
+	LDR R2, =0xAA       @ If SW2 is pressed, load 0xAA into the LED register R2.
+	B write_leds        @ Write the value to the LEDs and loop back.
 
 continue_normal:
 	@ --- NORMAL COUNTING LOGIC ---
 
 	@ Step 1: Determine increment value based on SW0 (PA0)
-	MOVS R4, #1          @ Default increment value = 1
-	@ --- FIX START ---
-	MOVS R0, #1          @ Load mask for bit 0 into R0
-	TST R3, R0           @ Test if bit 0 of R3 is set
-	@ --- FIX END ---
-	BNE check_delay      @ If not pressed, keep increment as 1 and check for delay.
-	MOVS R4, #2          @ If pressed, set increment value = 2.
+	MOVS R4, #1         @ Default increment value = 1
+	TST R3, #(1 << 0)   @ Check if SW0 is pressed
+	BNE check_delay     @ If not pressed, keep increment as 1 and check for delay.
+	MOVS R4, #2         @ If pressed, set increment value = 2.
 
 check_delay:
 	@ Step 2: Determine delay duration based on SW1 (PA1)
 	LDR R6, =LONG_DELAY_CNT     @ Load address for the default long delay
-	@ --- FIX START ---
-	MOVS R0, #2          @ Load mask for bit 1 into R0
-	TST R3, R0           @ Test if bit 1 of R3 is set
-	@ --- FIX END ---
+	TST R3, #(1 << 1)           @ Check if SW1 is pressed
 	BNE perform_increment_and_delay @ If not pressed, use the long delay.
 	LDR R6, =SHORT_DELAY_CNT    @ If pressed, load address for the short delay instead.
 
@@ -111,6 +100,3 @@ MODER_OUTPUT: 		.word 0x5555
 @ For 0.3s: (0.3s * 8,000,000 cycles/s) / ~3 cycles/loop = 800,000
 LONG_DELAY_CNT: 	.word 1800000
 SHORT_DELAY_CNT: 	.word 800000
-
-	.pool
-    .end
